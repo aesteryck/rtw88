@@ -5,38 +5,31 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include "main.h"
-#include "rtw8822cu.h"
+#include "rtw8822c.h"
+#include "usb.h"
 
 static const struct usb_device_id rtw_8822cu_id_table[] = {
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					RTW_USB_PRODUCT_ID_REALTEK_8822C,
-					0xff, 0xff, 0xff),
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82c, 0xff, 0xff, 0xff),
 	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					RTW_USB_PRODUCT_ID_REALTEK_8812C,
-					0xff, 0xff, 0xff),
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc812, 0xff, 0xff, 0xff),
 	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82e, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd820, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd82b, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13b1, 0x0043, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) }, /* Alpha - Alpha */
 	{},
 };
 MODULE_DEVICE_TABLE(usb, rtw_8822cu_id_table);
 
-static struct rtw_module_param rtw8822cu_mod_params = {
-	.disable_idle = true,
-	.disable_ps = true,
-};
-
-module_param_named(disable_idle, rtw8822cu_mod_params.disable_idle, bool, 0444);
-module_param_named(disable_ps, rtw8822cu_mod_params.disable_ps, bool, 0644);
-
-MODULE_PARM_DESC(disable_idle, "mac80211 power save: (default 1)");
-MODULE_PARM_DESC(disable_ps, "mac80211 idle: (default 1)");
-
 static int rtw8822bu_probe(struct usb_interface *intf,
-			    const struct usb_device_id *id)
+			   const struct usb_device_id *id)
 {
-	return rtw_usb_probe(intf, id, &rtw8822cu_mod_params);
+	return rtw_usb_probe(intf, id);
 }
-
 
 static struct usb_driver rtw_8822cu_driver = {
 	.name = "rtw_8822cu",

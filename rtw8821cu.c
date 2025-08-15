@@ -5,65 +5,36 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include "main.h"
-#include "rtw8821cu.h"
+#include "rtw8821c.h"
+#include "usb.h"
 
 static const struct usb_device_id rtw_8821cu_id_table[] = {
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xb82b,
-					0xff, 0xff, 0xff),
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xb82b, 0xff, 0xff, 0xff),
 	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xb820,
-					0xff, 0xff, 0xff),
-	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xC821,
-					0xff, 0xff, 0xff),
-	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xC820,
-					0xff, 0xff, 0xff),
-	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xC82A,
-					0xff, 0xff, 0xff),
-	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xC82B,
-					0xff, 0xff, 0xff),
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xb820, 0xff, 0xff, 0xff),
 	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xC811,
-					0xff, 0xff, 0xff),
-	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0x8811,
-					0xff, 0xff, 0xff),
-	.driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
-	/*=== Customer ID ===*/
-	{ USB_DEVICE(0x0bda, 0x2006),
-	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* Totolink */
-	{ USB_DEVICE(0x0bda, 0xc811),
-	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* Simplecom NW602 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc821, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc820, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82a, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82b, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc811, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0x8811, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0x2006, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* TOTOLINK A650UA v3 */
 	{},
 };
 MODULE_DEVICE_TABLE(usb, rtw_8821cu_id_table);
 
-static struct rtw_module_param rtw8821cu_mod_params = {
-	.disable_idle = true,
-	.disable_ps = true,
-};
-
-module_param_named(disable_idle, rtw8821cu_mod_params.disable_idle, bool, 0444);
-module_param_named(disable_ps, rtw8821cu_mod_params.disable_ps, bool, 0644);
-
-MODULE_PARM_DESC(disable_idle, "mac80211 power save: (default 1)");
-MODULE_PARM_DESC(disable_ps, "mac80211 idle: (default 1)");
-
 static int rtw_8821cu_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id)
 {
-	return rtw_usb_probe(intf, id, &rtw8821cu_mod_params);
+	return rtw_usb_probe(intf, id);
 }
 
 static struct usb_driver rtw_8821cu_driver = {

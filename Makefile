@@ -62,7 +62,8 @@ rtw88_core-y += main.o \
 	   sec.o \
 	   bf.o \
 	   wow.o \
-	   regd.o
+	   regd.o \
+	   sar.o
 
 
 obj-$(CONFIG_RTW88_8822B)	+= rtw88_8822b.o
@@ -132,7 +133,7 @@ firmware:
 	@echo "Wait 5 sec or CTRL-C"
 	@sleep 5
 	@mkdir -p /lib/firmware/rtw88
-	@cp fw/* /lib/firmware/rtw88/
+	@cp firmware/* /lib/firmware/rtw88/
 	@echo
 	@echo "rtw88-usb firmware installed"
 

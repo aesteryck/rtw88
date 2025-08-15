@@ -5,36 +5,22 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include "main.h"
-#include "rtw8723du.h"
+#include "rtw8723d.h"
+#include "usb.h"
 
 static const struct usb_device_id rtw_8723du_id_table[] = {
-	/*
-	 * ULLI :
-	 * ID found in rtw8822bu sources
-	 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
-					0xD723,
-					0xff, 0xff, 0xff),
+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd723, 0xff, 0xff, 0xff),
 	  .driver_info = (kernel_ulong_t)&(rtw8723d_hw_spec) }, /* 8723DU 1*1 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xd611, 0xff, 0xff, 0xff),
+	  .driver_info = (kernel_ulong_t)&(rtw8723d_hw_spec) }, /* Edimax EW-7611ULB V2 */
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, rtw_8723du_id_table);
 
-static struct rtw_module_param rtw8723du_mod_params = {
-	.disable_idle = true,
-	.disable_ps = true,
-};
-
-module_param_named(disable_idle, rtw8723du_mod_params.disable_idle, bool, 0444);
-module_param_named(disable_ps, rtw8723du_mod_params.disable_ps, bool, 0644);
-
-MODULE_PARM_DESC(disable_idle, "mac80211 power save: (default 1)");
-MODULE_PARM_DESC(disable_ps, "mac80211 idle: (default 1)");
-
 static int rtw8723du_probe(struct usb_interface *intf,
-			    const struct usb_device_id *id)
+			   const struct usb_device_id *id)
 {
-	return rtw_usb_probe(intf, id, &rtw8723du_mod_params);
+	return rtw_usb_probe(intf, id);
 }
 
 static struct usb_driver rtw_8723du_driver = {

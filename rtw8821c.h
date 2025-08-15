@@ -9,29 +9,24 @@
 
 #define RCR_VHT_ACK		BIT(26)
 
-/*
- * ULLI :
- * shamelessly borrowed from rtw8821au development cycle
- */
-
 struct rtw8821cu_efuse {
-        u8 res4[4];                     /* 0xd0 */
-        u8 usb_optional_function;
-        u8 res5[0x1e];
-        u8 res6[2];
-        u8 serial[0x0b];                /* 0xf5 */
-        u8 vid;                         /* 0x100 */
-        u8 res7;
-        u8 pid;
-        u8 res8[4];
-        u8 mac_addr[ETH_ALEN];          /* 0x107 */
-        u8 res9[2];
-        u8 vendor_name[0x07];
-        u8 res10[2];
-        u8 device_name[0x14];
-        u8 res11[0xcf];
-        u8 package_type;                /* 0x1fb */
-        u8 res12[0x4];
+	u8 res4[4];			/* 0xd0 */
+	u8 usb_optional_function;
+	u8 res5[0x1e];
+	u8 res6[2];
+	u8 serial[0x0b];		/* 0xf5 */
+	u8 vid;				/* 0x100 */
+	u8 res7;
+	u8 pid;
+	u8 res8[4];
+	u8 mac_addr[ETH_ALEN];		/* 0x107 */
+	u8 res9[2];
+	u8 vendor_name[0x07];
+	u8 res10[2];
+	u8 device_name[0x14];
+	u8 res11[0xcf];
+	u8 package_type;		/* 0x1fb */
+	u8 res12[0x4];
 };
 
 struct rtw8821ce_efuse {
@@ -110,6 +105,8 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 	rtw_write32_mask(rtwdev, addr + 0x200, mask, data);
 }
 
+extern const struct rtw_chip_info rtw8821c_hw_spec;
+
 #define rtw_write32s_mask(rtwdev, addr, mask, data)			       \
 	do {								       \
 		BUILD_BUG_ON((addr) < 0xC00 || (addr) >= 0xD00);	       \
@@ -157,7 +154,7 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define WLAN_TX_FUNC_CFG2		0x30
 #define WLAN_MAC_OPT_NORM_FUNC1		0x98
 #define WLAN_MAC_OPT_LB_FUNC1		0x80
-#define WLAN_MAC_OPT_FUNC2		0x30810041
+#define WLAN_MAC_OPT_FUNC2		0xb0810041
 
 #define WLAN_SIFS_CFG	(WLAN_SIFS_CCK_CONT_TX | \
 			(WLAN_SIFS_OFDM_CONT_TX << BIT_SHIFT_SIFS_OFDM_CTX) | \

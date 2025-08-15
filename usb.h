@@ -6,9 +6,9 @@
 #define __RTW_USB_H_
 
 #define FW_8192C_START_ADDRESS		0x1000
-#define FW_8192C_END_ADDRESS            0x5FFF
+#define FW_8192C_END_ADDRESS		0x5fff
 
-#define RTW_USB_MAX_RX_COUNT		100
+#define RTW_USB_MAX_RXTX_COUNT		128
 #define RTW_USB_VENQT_MAX_BUF_SIZE	254
 #define MAX_USBCTRL_VENDORREQ_TIMES	10
 
@@ -16,12 +16,7 @@
 #define RTW_USB_CMD_WRITE		0x40
 #define RTW_USB_CMD_REQ			0x05
 
-#define	RTW_USB_VENQT_CMD_IDX		0x00
-
-#define RTW_USB_IS_FULL_SPEED_USB(rtwusb) \
-	((rtwusb)->usb_speed == RTW_USB_SPEED_1_1)
-#define RTW_USB_IS_HIGH_SPEED(rtwusb)	((rtwusb)->usb_speed == RTW_USB_SPEED_2)
-#define RTW_USB_IS_SUPER_SPEED(rtwusb)	((rtwusb)->usb_speed == RTW_USB_SPEED_3)
+#define RTW_USB_VENQT_CMD_IDX		0x00
 
 #define RTW_USB_SUPER_SPEED_BULK_SIZE	1024
 #define RTW_USB_HIGH_SPEED_BULK_SIZE	512
@@ -38,7 +33,7 @@
 #define RTW_USB_HW_QUEUE_ENTRY		8
 
 #define RTW_USB_PACKET_OFFSET_SZ	8
-#define RTW_USB_MAX_XMITBUF_SZ		(1592 * 3)
+#define RTW_USB_MAX_XMITBUF_SZ		(1024 * 20)
 #define RTW_USB_MAX_RECVBUF_SZ		32768
 
 #define RTW_USB_RECVBUFF_ALIGN_SZ	8
@@ -48,32 +43,22 @@
 
 #define RTW_USB_RXCB_NUM		4
 
-#define rtw_get_usb_priv(rtwdev) (struct rtw_usb *)((rtwdev)->priv)
+#define RTW_USB_EP_MAX			4
 
-enum rtw_usb_burst_size {
-	USB_BURST_SIZE_3_0 = 0x0,
-	USB_BURST_SIZE_2_0_HS = 0x1,
-	USB_BURST_SIZE_2_0_FS = 0x2,
-	USB_BURST_SIZE_2_0_OTHERS = 0x3,
-	USB_BURST_SIZE_UNDEFINE = 0x7F,
-};
+#define TX_DESC_QSEL_MAX		20
 
-enum rtw_usb_speed {
-	RTW_USB_SPEED_UNKNOWN	= 0,
-	RTW_USB_SPEED_1_1	= 1,
-	RTW_USB_SPEED_2		= 2,
-	RTW_USB_SPEED_3		= 3,
-};
+#define RTW_USB_VENDOR_ID_REALTEK	0x0bda
+
+static inline struct rtw_usb *rtw_get_usb_priv(struct rtw_dev *rtwdev)
+{
+	return (struct rtw_usb *)rtwdev->priv;
+}
 
 struct rx_usb_ctrl_block {
-	u8 *data;
+	struct rtw_dev *rtwdev;
 	struct urb *rx_urb;
 	struct sk_buff *rx_skb;
-};
-
-struct rtw_usb_work_data {
-	struct work_struct work;
-	struct rtw_dev *rtwdev;
+	int n;
 };
 
 struct rtw_usb_tx_data {
@@ -84,29 +69,26 @@ struct rtw_usb {
 	struct rtw_dev *rtwdev;
 	struct usb_device *udev;
 
+	/* protects usb_data_index */
 	spinlock_t usb_lock;
 	__le32 *usb_data;
-	int usb_data_index;
+	unsigned int usb_data_index;
 
 	u32 bulkout_size;
-	u8 num_in_pipes;
-	u8 num_out_pipes;
 	u8 pipe_interrupt;
 	u8 pipe_in;
-	u8 out_ep[4];
-	u8 out_ep_queue_sel;
-	u8 queue_to_pipe[8];
-	u8 usb_speed;
+	u8 out_ep[RTW_USB_EP_MAX];
+	u8 qsel_to_ep[TX_DESC_QSEL_MAX];
 	u8 usb_txagg_num;
 
 	struct workqueue_struct *txwq, *rxwq;
 
-	struct sk_buff_head tx_queue[RTK_MAX_TX_QUEUE_NUM];
-	struct rtw_usb_work_data *tx_handler_data;
+	struct sk_buff_head tx_queue[RTW_USB_EP_MAX];
+	struct work_struct tx_work;
 
 	struct rx_usb_ctrl_block rx_cb[RTW_USB_RXCB_NUM];
 	struct sk_buff_head rx_queue;
-	struct rtw_usb_work_data *rx_handler_data;
+	struct work_struct rx_work;
 };
 
 static inline struct rtw_usb_tx_data *rtw_usb_get_tx_data(struct sk_buff *skb)
@@ -114,8 +96,12 @@ static inline struct rtw_usb_tx_data *rtw_usb_get_tx_data(struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	BUILD_BUG_ON(sizeof(struct rtw_usb_tx_data) >
-		sizeof(info->status.status_driver_data));
+		     sizeof(info->status.status_driver_data));
 
 	return (struct rtw_usb_tx_data *)info->status.status_driver_data;
 }
+
+int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id);
+void rtw_usb_disconnect(struct usb_interface *intf);
+
 #endif

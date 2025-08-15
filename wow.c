@@ -12,26 +12,54 @@
 
 static void rtw_wow_show_wakeup_reason(struct rtw_dev *rtwdev)
 {
+	struct cfg80211_wowlan_nd_info nd_info;
+	struct cfg80211_wowlan_wakeup wakeup = {
+		.pattern_idx = -1,
+	};
 	u8 reason;
 
 	reason = rtw_read8(rtwdev, REG_WOWLAN_WAKE_REASON);
 
-	if (reason == RTW_WOW_RSN_RX_DEAUTH)
+	switch (reason) {
+	case RTW_WOW_RSN_RX_DEAUTH:
+		wakeup.disconnect = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx deauth\n");
-	else if (reason == RTW_WOW_RSN_DISCONNECT)
+		break;
+	case RTW_WOW_RSN_DISCONNECT:
+		wakeup.disconnect = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: AP is off\n");
-	else if (reason == RTW_WOW_RSN_RX_MAGIC_PKT)
+		break;
+	case RTW_WOW_RSN_RX_MAGIC_PKT:
+		wakeup.magic_pkt = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx magic packet\n");
-	else if (reason == RTW_WOW_RSN_RX_GTK_REKEY)
+		break;
+	case RTW_WOW_RSN_RX_GTK_REKEY:
+		wakeup.gtk_rekey_failure = true;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx gtk rekey\n");
-	else if (reason == RTW_WOW_RSN_RX_PTK_REKEY)
-		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx ptk rekey\n");
-	else if (reason == RTW_WOW_RSN_RX_PATTERN_MATCH)
+		break;
+	case RTW_WOW_RSN_RX_PATTERN_MATCH:
+		/* Current firmware and driver don't report pattern index
+		 * Use pattern_idx to 0 defaultly.
+		 */
+		wakeup.pattern_idx = 0;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "WOW: Rx pattern match packet\n");
-	else if (reason == RTW_WOW_RSN_RX_NLO)
+		break;
+	case RTW_WOW_RSN_RX_NLO:
+		/* Current firmware and driver don't report ssid index.
+		 * Use 0 for n_matches based on its comment.
+		 */
+		nd_info.n_matches = 0;
+		wakeup.net_detect = &nd_info;
 		rtw_dbg(rtwdev, RTW_DBG_WOW, "Rx NLO\n");
-	else
+		break;
+	default:
 		rtw_warn(rtwdev, "Unknown wakeup reason %x\n", reason);
+		ieee80211_report_wowlan_wakeup(rtwdev->wow.wow_vif, NULL,
+					       GFP_KERNEL);
+		return;
+	}
+	ieee80211_report_wowlan_wakeup(rtwdev->wow.wow_vif, &wakeup,
+				       GFP_KERNEL);
 }
 
 static void rtw_wow_pattern_write_cam(struct rtw_dev *rtwdev, u8 addr,
@@ -73,9 +101,6 @@ static void rtw_wow_pattern_write_cam_ent(struct rtw_dev *rtwdev, u8 id,
 		break;
 	case RTW_PATTERN_UNICAST:
 		wdata |= BIT_WKFMCAM_UC | BIT_WKFMCAM_VALID;
-		break;
-	case RTW_PATTERN_WILDCARD:
-		wdata |= BIT_WKFMCAM_VALID;
 		break;
 	default:
 		break;
@@ -134,47 +159,17 @@ static u16 rtw_calc_crc(u8 *pdata, int length)
 	return ~crc;
 }
 
-static int rtw_wow_pattern_get_type(struct rtw_vif *rtwvif,
-				    const u8 *pattern, u8 da_mask)
-{
-	u8 da[ETH_ALEN];
-	u8 type;
-
-	ether_addr_copy_mask(da, pattern, da_mask);
-
-	/* Each pattern is divided into different kinds by DA address
-	 *  a. DA is broadcast address
-	 *  b. DA is multicast address
-	 *  c. DA is unicast address same as dev's mac address
-	 *  d. DA is unmasked. Also called wildcard type.
-	 *  e. Others is invalid type.
-	 */
-	if (!da_mask)
-		type = RTW_PATTERN_WILDCARD;
-	else if (is_broadcast_ether_addr(da))
-		type = RTW_PATTERN_BROADCAST;
-	else if (is_multicast_ether_addr(da))
-		type = RTW_PATTERN_MULTICAST;
-	else if (ether_addr_equal(da, rtwvif->mac_addr) &&
-		 (da_mask == GENMASK(5, 0)))
-		type = RTW_PATTERN_UNICAST;
-	else
-		type = RTW_PATTERN_INVALID;
-
-	return type;
-}
-
-static int rtw_wow_pattern_generate(struct rtw_dev *rtwdev,
-				    struct rtw_vif *rtwvif,
-				    const struct cfg80211_pkt_pattern *pkt_pattern,
-				    struct rtw_wow_pattern *rtw_pattern)
+static void rtw_wow_pattern_generate(struct rtw_dev *rtwdev,
+				     struct rtw_vif *rtwvif,
+				     const struct cfg80211_pkt_pattern *pkt_pattern,
+				     struct rtw_wow_pattern *rtw_pattern)
 {
 	const u8 *mask;
 	const u8 *pattern;
 	u8 mask_hw[RTW_MAX_PATTERN_MASK_SIZE] = {0};
 	u8 content[RTW_MAX_PATTERN_SIZE] = {0};
+	u8 mac_addr[ETH_ALEN] = {0};
 	u8 mask_len;
-	u8 type;
 	u16 count;
 	int len;
 	int i;
@@ -182,15 +177,20 @@ static int rtw_wow_pattern_generate(struct rtw_dev *rtwdev,
 	pattern = pkt_pattern->pattern;
 	len = pkt_pattern->pattern_len;
 	mask = pkt_pattern->mask;
-	mask_len = DIV_ROUND_UP(len, 8);
+
+	ether_addr_copy(mac_addr, rtwvif->mac_addr);
 	memset(rtw_pattern, 0, sizeof(*rtw_pattern));
 
-	type = rtw_wow_pattern_get_type(rtwvif, pattern,
-					mask[0] & GENMASK(5, 0));
-	if (type == RTW_PATTERN_INVALID)
-		return -EPERM;
+	mask_len = DIV_ROUND_UP(len, 8);
 
-	rtw_pattern->type = type;
+	if (is_broadcast_ether_addr(pattern))
+		rtw_pattern->type = RTW_PATTERN_BROADCAST;
+	else if (is_multicast_ether_addr(pattern))
+		rtw_pattern->type = RTW_PATTERN_MULTICAST;
+	else if (ether_addr_equal(pattern, mac_addr))
+		rtw_pattern->type = RTW_PATTERN_UNICAST;
+	else
+		rtw_pattern->type = RTW_PATTERN_INVALID;
 
 	/* translate mask from os to mask for hw
 	 * pattern from OS uses 'ethenet frame', like this:
@@ -236,35 +236,6 @@ static int rtw_wow_pattern_generate(struct rtw_dev *rtwdev,
 	}
 
 	rtw_pattern->crc = rtw_calc_crc(content, count);
-
-	return 0;
-}
-
-static int rtw_wow_parse_patterns(struct rtw_dev *rtwdev,
-				  struct rtw_vif *rtwvif,
-				  struct cfg80211_wowlan *wowlan)
-{
-	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
-	struct rtw_wow_pattern *rtw_patterns = rtw_wow->patterns;
-	int i;
-	int ret;
-
-	if (!wowlan->n_patterns || !wowlan->patterns)
-		return 0;
-
-	for (i = 0; i < wowlan->n_patterns; i++) {
-		ret = rtw_wow_pattern_generate(rtwdev, rtwvif,
-					       wowlan->patterns + i,
-					       rtw_patterns + i);
-		if (ret) {
-			rtw_err(rtwdev, "failed to generate pattern(%d)\n", i);
-			rtw_wow->pattern_cnt = 0;
-			return ret;
-		}
-	}
-	rtw_wow->pattern_cnt = wowlan->n_patterns;
-
-	return 0;
 }
 
 static void rtw_wow_pattern_clear_cam(struct rtw_dev *rtwdev)
@@ -340,15 +311,26 @@ static void rtw_wow_rx_dma_start(struct rtw_dev *rtwdev)
 
 static int rtw_wow_check_fw_status(struct rtw_dev *rtwdev, bool wow_enable)
 {
-	/* wait 100ms for wow firmware to finish work */
-	msleep(100);
+	int ret;
+	u8 check;
+	u32 check_dis;
 
 	if (wow_enable) {
-		if (rtw_read8(rtwdev, REG_WOWLAN_WAKE_REASON))
+		ret = read_poll_timeout(rtw_read8, check, !check, 1000,
+					100000, true, rtwdev,
+					REG_WOWLAN_WAKE_REASON);
+		if (ret)
 			goto wow_fail;
 	} else {
-		if (rtw_read32_mask(rtwdev, REG_FE1IMR, BIT_FS_RXDONE) ||
-		    rtw_read32_mask(rtwdev, REG_RXPKT_NUM, BIT_RW_RELEASE))
+		ret = read_poll_timeout(rtw_read32_mask, check_dis,
+					!check_dis, 1000, 100000, true, rtwdev,
+					REG_FE1IMR, BIT_FS_RXDONE);
+		if (ret)
+			goto wow_fail;
+		ret = read_poll_timeout(rtw_read32_mask, check_dis,
+					!check_dis, 1000, 100000, false, rtwdev,
+					REG_RXPKT_NUM, BIT_RW_RELEASE);
+		if (ret)
 			goto wow_fail;
 	}
 
@@ -489,37 +471,31 @@ static void rtw_wow_fw_media_status(struct rtw_dev *rtwdev, bool connect)
 	rtw_iterate_stas_atomic(rtwdev, rtw_wow_fw_media_status_iter, &data);
 }
 
-static void rtw_wow_config_pno_rsvd_page(struct rtw_dev *rtwdev,
-					 struct rtw_vif *rtwvif)
-{
-	rtw_add_rsvd_page_pno(rtwdev, rtwvif);
-}
-
-static void rtw_wow_config_linked_rsvd_page(struct rtw_dev *rtwdev,
-					   struct rtw_vif *rtwvif)
-{
-	rtw_add_rsvd_page_sta(rtwdev, rtwvif);
-}
-
-static void rtw_wow_config_rsvd_page(struct rtw_dev *rtwdev,
-				     struct rtw_vif *rtwvif)
-{
-	rtw_remove_rsvd_page(rtwdev, rtwvif);
-
-	if (rtw_wow_mgd_linked(rtwdev)) {
-		rtw_wow_config_linked_rsvd_page(rtwdev, rtwvif);
-	} else if (test_bit(RTW_FLAG_WOWLAN, rtwdev->flags) &&
-		   rtw_wow_no_link(rtwdev)) {
-		rtw_wow_config_pno_rsvd_page(rtwdev, rtwvif);
-	}
-}
-
-static int rtw_wow_dl_fw_rsvd_page(struct rtw_dev *rtwdev)
+static int rtw_wow_config_wow_fw_rsvd_page(struct rtw_dev *rtwdev)
 {
 	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)wow_vif->drv_priv;
 
-	rtw_wow_config_rsvd_page(rtwdev, rtwvif);
+	rtw_remove_rsvd_page(rtwdev, rtwvif);
+
+	if (rtw_wow_no_link(rtwdev))
+		rtw_add_rsvd_page_pno(rtwdev, rtwvif);
+	else
+		rtw_add_rsvd_page_sta(rtwdev, rtwvif);
+
+	return rtw_fw_download_rsvd_page(rtwdev);
+}
+
+static int rtw_wow_config_normal_fw_rsvd_page(struct rtw_dev *rtwdev)
+{
+	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)wow_vif->drv_priv;
+
+	rtw_remove_rsvd_page(rtwdev, rtwvif);
+	rtw_add_rsvd_page_sta(rtwdev, rtwvif);
+
+	if (rtw_wow_no_link(rtwdev))
+		return 0;
 
 	return rtw_fw_download_rsvd_page(rtwdev);
 }
@@ -717,7 +693,7 @@ static int rtw_wow_enable(struct rtw_dev *rtwdev)
 
 	set_bit(RTW_FLAG_WOWLAN, rtwdev->flags);
 
-	ret = rtw_wow_dl_fw_rsvd_page(rtwdev);
+	ret = rtw_wow_config_wow_fw_rsvd_page(rtwdev);
 	if (ret) {
 		rtw_err(rtwdev, "failed to download wowlan rsvd page\n");
 		goto error;
@@ -790,7 +766,7 @@ static int rtw_wow_disable(struct rtw_dev *rtwdev)
 		goto out;
 	}
 
-	ret = rtw_wow_dl_fw_rsvd_page(rtwdev);
+	ret = rtw_wow_config_normal_fw_rsvd_page(rtwdev);
 	if (ret)
 		rtw_err(rtwdev, "failed to download normal rsvd page\n");
 
@@ -828,7 +804,9 @@ static int rtw_wow_set_wakeups(struct rtw_dev *rtwdev,
 			       struct cfg80211_wowlan *wowlan)
 {
 	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw_wow_pattern *rtw_patterns = rtw_wow->patterns;
 	struct rtw_vif *rtwvif;
+	int i;
 
 	if (wowlan->disconnect)
 		set_bit(RTW_WOW_FLAG_EN_DISCONNECT, rtw_wow->flags);
@@ -845,7 +823,15 @@ static int rtw_wow_set_wakeups(struct rtw_dev *rtwdev,
 		return -EPERM;
 
 	rtwvif = (struct rtw_vif *)rtw_wow->wow_vif->drv_priv;
-	return rtw_wow_parse_patterns(rtwdev, rtwvif, wowlan);
+	if (wowlan->n_patterns && wowlan->patterns) {
+		rtw_wow->pattern_cnt = wowlan->n_patterns;
+		for (i = 0; i < wowlan->n_patterns; i++)
+			rtw_wow_pattern_generate(rtwdev, rtwvif,
+						 wowlan->patterns + i,
+						 rtw_patterns + i);
+	}
+
+	return 0;
 }
 
 static void rtw_wow_clear_wakeups(struct rtw_dev *rtwdev)
