@@ -1,26 +1,33 @@
-# rtw88-usb
+# rtw88
+===========
+### A repo for the newest Realtek rtlwifi codes.
 
-mac80211 kernel driver
+This code will build on any kernel 4.19 and newer as long as the distro has not modified
+any of the kernel APIs. IF YOU RUN UBUNTU, YOU CAN BE ASSURED THAT THE APIs HAVE CHANGED.
+NO, I WILL NOT MODIFY THE SOURCE FOR YOU. YOU ARE ON YOUR OWN!!!!!
 
-currently supported chipset's
+This repository includes drivers for the following cards:
 
-8723du  
-8822bu with variants  
-8821cu  
-8822cu  
+RTL8723DE, RTL8723DU, RTL8821CE, RTL8821CU, RTL8822BE, RTL8822BU, RTL8822CE and RTL8822CU
 
+If you are looking for a driver for chips such as 
+RTL8188EE, RTL8192CE, RTL8192CU, RTL8192DE, RTL8192EE, RTL8192SE, RTL8723AE, RTL8723BE, or RTL8821AE,
+these should be provided by your kernel. If not, then you should go to the Backports Project
+(https://backports.wiki.kernel.org/index.php/Main_Page) to obtain the necessary code.
 
-It's under GPL license, and please feel free to use it.
-Also welcome to upstream to the Linux kernel if you want, and please
-refer to the branch, for_kernel_upstream, which meets the Linux coding
-style, and may be easier to upstream.
+This repo has been brought up to date with the kernel code on Sep. 25, 2020.
 
-Thank to many people's kind help on this project.  
-BIG tanks to Ji-Pin Jou and Neo Jou, for the USB parts
+The main changes are as follows:
+1. The methods for obtaining DMA buffers has changed. This should have no effect.
+2. The regulatory methods are changed. This may have some effect on users.
+3. The firmware loading has been more resistent against timeouts.
+4. The RX buffer size is increased.
+5. Antenna selection code was modified. This change may help the low signal problems.
+6. BlueTooth coexistence was modified.
 
-supports at least managed (i.e. client) and monitor mode.
-
-This driver is based on Realtek's rtw88 in Linux main trunk.
+When making these changes, I tried to watch for things that might be incompatible
+with older kernels. As this kind of updating in really boring, I might have missed
+something. Please let me know of build problems.
 
 ## Build
 
