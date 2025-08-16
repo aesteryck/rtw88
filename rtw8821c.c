@@ -1769,6 +1769,8 @@ static const struct coex_rf_para rf_para_rx_8821c[] = {
 	{0, 28, true, 5}
 };
 
+static_assert(ARRAY_SIZE(rf_para_tx_8821c) == ARRAY_SIZE(rf_para_rx_8821c));
+
 static const u8 rtw8821c_pwrtrk_5gb_n[][RTW_PWR_TRK_TBL_SZ] = {
 	{0, 1, 1, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6, 7, 8, 8, 8, 9, 9, 9, 10, 10,
 	 11, 11, 12, 12, 12, 12, 12},
@@ -1912,7 +1914,7 @@ const struct rtw_chip_info rtw8821c_hw_spec = {
 	.max_power_index = 0x3f,
 	.csi_buf_pg_num = 0,
 	.band = RTW_BAND_2G | RTW_BAND_5G,
-	.page_size = 128,
+	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x1c,
 	.ht_supported = true,
 	.vht_supported = true,
@@ -1940,6 +1942,7 @@ const struct rtw_chip_info rtw8821c_hw_spec = {
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_2,
+	.max_scan_ie_len = IEEE80211_MAX_DATA_LEN,
 
 	.coex_para_ver = 0x19092746,
 	.bt_desired_ver = 0x46,

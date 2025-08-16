@@ -2360,6 +2360,8 @@ static const struct coex_5g_afh_map afh_5g_8822b[] = {
 	{155, 68, 20}
 };
 
+static_assert(ARRAY_SIZE(rf_para_tx_8822b) == ARRAY_SIZE(rf_para_rx_8822b));
+
 static const u8
 rtw8822b_pwrtrk_5gb_n[RTW_PWR_TRK_5G_NUM][RTW_PWR_TRK_TBL_SZ] = {
 	{ 0,  1,  2,  2,  3,  4,  5,  5,  6,  7,
@@ -2535,7 +2537,7 @@ const struct rtw_chip_info rtw8822b_hw_spec = {
 	.max_power_index = 0x3f,
 	.csi_buf_pg_num = 0,
 	.band = RTW_BAND_2G | RTW_BAND_5G,
-	.page_size = 128,
+	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x1c,
 	.ht_supported = true,
 	.vht_supported = true,
@@ -2567,6 +2569,7 @@ const struct rtw_chip_info rtw8822b_hw_spec = {
 	.l2h_th_ini_cs = 10 + EDCCA_IGI_BASE,
 	.l2h_th_ini_ad = -14 + EDCCA_IGI_BASE,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_2,
+	.max_scan_ie_len = IEEE80211_MAX_DATA_LEN,
 
 	.coex_para_ver = 0x20070206,
 	.bt_desired_ver = 0x6,
