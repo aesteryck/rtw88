@@ -242,8 +242,10 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtw_phy_dynamic_mechanism(rtwdev);
 
 	data.rtwdev = rtwdev;
-	/* use atomic version to avoid taking local->iflist_mtx mutex */
-	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_watch_dog_iter, &data);
+	/* rtw_iterate_vifs internally uses an atomic iterator which is needed
+	 * to avoid taking local->iflist_mtx mutex
+	 */
+	rtw_iterate_vifs(rtwdev, rtw_vif_watch_dog_iter, &data);
 
 	/* fw supports only one station associated to enter lps, if there are
 	 * more than two stations associated to the AP, then we can not enter
@@ -1183,9 +1185,8 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 #else
 		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
 #endif
-			stbc_en = VHT_STBC_EN;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
 			ldpc_en = VHT_LDPC_EN;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
 	} else if (sta->deflink.ht_cap.ht_supported) {
 		ra_mask |= (sta->deflink.ht_cap.mcs.rx_mask[1] << 20) |
 			   (sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
@@ -1288,7 +1289,6 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 		is_support_sgi = sta->vht_cap.vht_supported &&
 				 (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
 #endif
-		is_support_sgi = false;
 		break;
 	case IEEE80211_STA_RX_BW_40:
 		bw_mode = RTW_CHANNEL_WIDTH_40;
@@ -1299,7 +1299,6 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 		is_support_sgi = sta->ht_cap.ht_supported &&
 				 (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
 #endif
-		is_support_sgi = false;
 		break;
 	default:
 		bw_mode = RTW_CHANNEL_WIDTH_20;
@@ -1310,7 +1309,6 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 		is_support_sgi = sta->ht_cap.ht_supported &&
 				 (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
 #endif
-		is_support_sgi = false;
 		break;
 	}
 
